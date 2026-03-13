@@ -14,6 +14,8 @@ export interface ModelInfo {
   supportsImageInput: boolean;
   supportsVideoInput: boolean;
   supportsAudioInput: boolean;
+  supportsEndFrame: boolean;
+  maxReferenceImages: number;
   maxDuration: number | null;
   aspectRatios: string[];
   voices: string[];
@@ -46,6 +48,12 @@ export interface JobStatusResponse {
   logs?: string[];
 }
 
+export interface ReferenceImageInput {
+  url: string;
+  description?: string;
+  weight?: number;
+}
+
 export interface ImageGenerationRequest {
   modelId: string;
   prompt: string;
@@ -55,6 +63,7 @@ export interface ImageGenerationRequest {
   seed?: number;
   imageUrl?: string;
   imageStrength?: number;
+  referenceImages?: ReferenceImageInput[];
 }
 
 export interface VideoGenerationRequest {
@@ -64,6 +73,7 @@ export interface VideoGenerationRequest {
   duration?: string;
   aspectRatio?: string;
   imageUrl?: string;
+  endImageUrl?: string;
   seed?: number;
   generateAudio?: boolean;
 }
@@ -91,6 +101,7 @@ export interface TtsGenerationRequest {
 }
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
+  if (!supabase) return {};
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.access_token) {
     return { Authorization: `Bearer ${session.access_token}` };

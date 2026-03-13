@@ -18,36 +18,29 @@ function parseOutputs(result: unknown): Array<{ url: string; contentType?: strin
       outputs.push({ url: img.url, contentType: img.content_type, width: img.width, height: img.height });
     }
   }
-
   if (r.video && typeof r.video === "object") {
     const v = r.video as { url: string; content_type?: string; duration?: number };
     outputs.push({ url: v.url, contentType: v.content_type, duration: v.duration });
   }
-
   if (Array.isArray(r.videos)) {
     for (const v of r.videos as Array<{ url: string; content_type?: string; duration?: number }>) {
       outputs.push({ url: v.url, contentType: v.content_type, duration: v.duration });
     }
   }
-
   if (r.audio_url && typeof r.audio_url === "object") {
     const a = r.audio_url as { url: string; content_type?: string; duration?: number };
     outputs.push({ url: a.url, contentType: a.content_type, duration: a.duration });
   }
-
   if (typeof r.audio_url === "string") {
     outputs.push({ url: r.audio_url, contentType: "audio/mpeg" });
   }
-
   if (r.audio && typeof r.audio === "object") {
     const a = r.audio as { url: string; content_type?: string; duration?: number };
     outputs.push({ url: a.url, contentType: a.content_type ?? "audio/wav", duration: a.duration });
   }
-
   if (typeof r.url === "string") {
     outputs.push({ url: r.url });
   }
-
   return outputs;
 }
 
@@ -61,15 +54,35 @@ async function submitJob(modelId: string, input: Record<string, unknown>, mediaT
 // POST /api/generate/image
 router.post("/generate/image", requireAuth, async (req: Request, res: Response) => {
   try {
-    const { modelId, prompt, negativePrompt, aspectRatio, numImages, seed, imageUrl, imageStrength } = req.body as Record<string, unknown>;
+    const {
+      modelId, prompt, negativePrompt, aspectRatio, numImages, seed,
+      imageUrl, imageStrength,
+      referenceImages, // array of { url, description, weight } for Nano Banana
+    } = req.body as Record<string, unknown>;
+
     if (!modelId || !prompt) return res.status(400).json({ error: "missing_fields", message: "modelId and prompt required" });
+
     const input: Record<string, unknown> = { prompt };
     if (negativePrompt) input.negative_prompt = negativePrompt;
     if (aspectRatio) input.aspect_ratio = aspectRatio;
     if (numImages) input.num_images = numImages;
     if (seed) input.seed = seed;
-    if (imageUrl) { input.image_url = imageUrl; input.image_size = undefined; }
+
+    // Image editing (FLUX Pro fill / img2img)
+    if (imageUrl) { input.image_url = imageUrl; }
     if (imageUrl && imageStrength !== undefined) input.strength = imageStrength;
+
+    // Nano Banana reference images (Imagen 3 style reference)
+    if (Array.isArray(referenceImages) && referenceImages.length > 0) {
+      input.reference_images = (referenceImages as Array<{ url: string; description?: string; weight?: number }>)
+        .slice(0, 14)
+        .map((ri) => ({
+          image_url: ri.url,
+          ...(ri.description ? { description: ri.description } : {}),
+          ...(ri.weight !== undefined ? { weight: ri.weight } : {}),
+        }));
+    }
+
     await submitJob(modelId as string, input, "image", res);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -81,15 +94,22 @@ router.post("/generate/image", requireAuth, async (req: Request, res: Response) 
 // POST /api/generate/video
 router.post("/generate/video", requireAuth, async (req: Request, res: Response) => {
   try {
-    const { modelId, prompt, negativePrompt, aspectRatio, duration, imageUrl, seed, generateAudio } = req.body as Record<string, unknown>;
+    const {
+      modelId, prompt, negativePrompt, aspectRatio, duration,
+      imageUrl, endImageUrl, seed, generateAudio,
+    } = req.body as Record<string, unknown>;
+
     if (!modelId || !prompt) return res.status(400).json({ error: "missing_fields", message: "modelId and prompt required" });
+
     const input: Record<string, unknown> = { prompt };
     if (negativePrompt) input.negative_prompt = negativePrompt;
     if (aspectRatio) input.aspect_ratio = aspectRatio;
-    if (duration) input.duration = duration;
-    if (imageUrl) input.image_url = imageUrl;
+    if (duration) input.duration = Number(duration);
+    if (imageUrl) input.image_url = imageUrl;          // start frame (image-to-video)
+    if (endImageUrl) input.tail_image_url = endImageUrl; // end frame (Kling only)
     if (seed) input.seed = seed;
     if (generateAudio !== undefined) input.generate_audio = generateAudio;
+
     await submitJob(modelId as string, input, "video", res);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -136,21 +156,13 @@ router.post("/generate/tts", requireAuth, async (req: Request, res: Response) =>
     const input: Record<string, unknown> = { text };
     if (voice) input.voice = voice;
     if (speed) input.speed = speed;
-    if (referenceAudioUrl) {
-      input.reference_audio_url = referenceAudioUrl;
-      input.ref_audio_url = referenceAudioUrl;
-    }
+    if (referenceAudioUrl) { input.reference_audio_url = referenceAudioUrl; input.ref_audio_url = referenceAudioUrl; }
 
-    // TTS models are fast — try direct run first
     try {
       const result = await fal.run(modelId as string, { input });
       const outputs = parseOutputs(result);
-      if (outputs.length > 0) {
-        return res.json({ jobId: "direct", requestId: "direct", status: "completed", mediaType: "audio", outputs });
-      }
-    } catch {
-      // Fall back to queue
-    }
+      if (outputs.length > 0) return res.json({ jobId: "direct", requestId: "direct", status: "completed", mediaType: "audio", outputs });
+    } catch { /* fall back to queue */ }
 
     await submitJob(modelId as string, input, "audio", res);
   } catch (err) {
@@ -168,10 +180,7 @@ router.get("/jobs/:jobId/status", async (req: Request, res: Response) => {
     const jobId = req.params.jobId;
 
     if (!requestId || !modelId) return res.status(400).json({ error: "missing_fields", message: "requestId and modelId required" });
-
-    if (jobId === "direct") {
-      return res.json({ jobId, requestId, status: "completed" });
-    }
+    if (jobId === "direct") return res.json({ jobId, requestId, status: "completed" });
 
     const status = await fal.queue.status(modelId, { requestId, logs: true });
     const logs = Array.isArray((status as Record<string, unknown>).logs)
@@ -183,16 +192,13 @@ router.get("/jobs/:jobId/status", async (req: Request, res: Response) => {
       const outputs = parseOutputs(result.data);
       return res.json({ jobId, requestId, status: "completed", outputs, logs });
     }
-
     if (status.status === "FAILED") {
       return res.json({ jobId, requestId, status: "failed", error: "Generation failed", logs });
     }
-
     if (status.status === "IN_QUEUE") {
       const qPos = (status as Record<string, unknown>).queue_position;
       return res.json({ jobId, requestId, status: "queued", queuePosition: typeof qPos === "number" ? qPos : undefined, logs });
     }
-
     return res.json({ jobId, requestId, status: "in_progress", logs });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
