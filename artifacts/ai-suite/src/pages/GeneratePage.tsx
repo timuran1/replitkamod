@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { FileUpload } from "@/components/FileUpload";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ASPECT_RATIOS = ["16:9", "9:16", "1:1", "4:3", "3:4"];
 
@@ -135,6 +136,7 @@ export default function GeneratePage() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const [, navigate] = useLocation();
+  const { user, loading } = useAuth();
 
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [selectedModelId, setSelectedModelId] = useState(params.get("modelId") || "");
@@ -298,6 +300,49 @@ export default function GeneratePage() {
     const map: Record<string, string> = { image: "Generate Image ✨", video: "Generate Video ✨", "motion-control": "Transfer Motion 🕺", lipsync: "Sync Lips 👄", tts: "Generate Voice 🎙️" };
     return map[selectedModel.category] || "Generate ✨";
   };
+
+  // Auth wall — show sign-in prompt while loading or if not logged in
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--k-bg)" }}>
+        <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "var(--k-accent)", borderTopColor: "transparent" }} />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "var(--k-bg)" }}>
+        <div
+          className="max-w-sm w-full rounded-2xl p-8 text-center"
+          style={{ background: "var(--k-surface)", border: "0.5px solid var(--k-border)" }}
+        >
+          <div className="text-4xl mb-4">🔒</div>
+          <h2 className="text-xl font-bold mb-2" style={{ color: "var(--k-text)" }}>
+            Войдите, чтобы создавать
+          </h2>
+          <p className="text-sm mb-6" style={{ color: "var(--k-muted)" }}>
+            Генерация изображений и видео доступна только авторизованным пользователям. При регистрации вы получите{" "}
+            <span style={{ color: "var(--k-accent)" }}>10 бесплатных кредитов</span>.
+          </p>
+          <button
+            onClick={() => navigate("/auth")}
+            className="w-full py-2.5 rounded-xl font-semibold text-sm transition-all"
+            style={{ background: "var(--k-accent)", color: "#111118" }}
+          >
+            Войти через Google
+          </button>
+          <button
+            onClick={() => navigate("/")}
+            className="w-full mt-3 py-2 text-sm"
+            style={{ color: "var(--k-muted)" }}
+          >
+            ← Назад
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
