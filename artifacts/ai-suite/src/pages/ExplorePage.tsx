@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { api, ModelInfo } from "@/lib/api";
-import { getModelPricing, formatUZS } from "@/lib/pricing";
+import { getModelPricing, formatUZS, PLANS } from "@/lib/pricing";
 
 const CATEGORY_CONFIG: Record<string, { icon: string; label: string; topColor: string }> = {
   "text-to-image": { icon: "🖼️", label: "Изображение", topColor: "#C8A96E" },
@@ -267,7 +267,164 @@ export default function ExplorePage() {
         {!loading && filtered.length === 0 && (
           <div className="text-center py-16" style={{ color: "var(--k-muted)" }}>Нет моделей для этого фильтра.</div>
         )}
+
+        {/* ─── Inline Pricing Section ─── */}
+        <HomePricing onNavigate={() => navigate("/pricing")} />
       </div>
+    </div>
+  );
+}
+
+const PAYMENT_NAMES = ["Click", "Payme", "Humo", "Uzcard"];
+
+function HomePricing({ onNavigate }: { onNavigate: () => void }) {
+  return (
+    <section id="pricing" className="mt-24 mb-8">
+      {/* Section header */}
+      <div className="text-center mb-10">
+        <div
+          className="inline-flex items-center gap-2 text-xs px-4 py-1.5 rounded-full mb-4"
+          style={{
+            background: "rgba(200, 169, 110, 0.08)",
+            border: "0.5px solid rgba(200, 169, 110, 0.25)",
+            color: "var(--k-accent)",
+          }}
+        >
+          <span>💎</span>
+          <span>Тарифы</span>
+        </div>
+        <h2 className="text-2xl md:text-3xl font-bold mb-3" style={{ color: "var(--k-text)" }}>
+          Начните бесплатно
+        </h2>
+        <p className="text-sm md:text-base" style={{ color: "var(--k-muted)" }}>
+          Оплата в UZS — Click, Payme, Humo, Uzcard. Отмена в любое время.
+        </p>
+      </div>
+
+      {/* Plan cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {PLANS.map((plan) => (
+          <HomePlanCard key={plan.id} plan={plan} />
+        ))}
+      </div>
+
+      {/* Payment methods */}
+      <div className="flex flex-col items-center gap-4 mb-6">
+        <div className="flex items-center gap-3 flex-wrap justify-center">
+          {PAYMENT_NAMES.map((name) => (
+            <div
+              key={name}
+              className="px-4 py-2 rounded-lg text-sm font-semibold"
+              style={{
+                background: "var(--k-surface)",
+                border: "0.5px solid var(--k-border)",
+                color: "var(--k-text)",
+              }}
+            >
+              {name}
+            </div>
+          ))}
+        </div>
+        <p className="text-xs" style={{ color: "var(--k-muted)" }}>
+          Безопасная оплата · Кредиты не сгорают 30 дней · 1 кредит ≈ 363 UZS
+        </p>
+      </div>
+
+      {/* Full pricing link */}
+      <div className="text-center">
+        <button
+          onClick={onNavigate}
+          className="text-sm font-medium transition-colors"
+          style={{ color: "var(--k-accent)" }}
+          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.opacity = "0.8")}
+          onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.opacity = "1")}
+        >
+          Подробнее о тарифах и кредитах →
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function HomePlanCard({ plan }: { plan: typeof PLANS[0] }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      className="relative flex flex-col rounded-xl p-5 transition-all duration-200"
+      style={{
+        background: "var(--k-card)",
+        border: plan.highlight
+          ? "1.5px solid var(--k-accent)"
+          : hovered
+          ? "0.5px solid rgba(200, 169, 110, 0.3)"
+          : "0.5px solid var(--k-border)",
+        borderRadius: "12px",
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Popular badge */}
+      {plan.badge && (
+        <div
+          className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs px-3 py-1 rounded-full font-semibold whitespace-nowrap"
+          style={{ background: "var(--k-accent)", color: "#111118" }}
+        >
+          {plan.badge}
+        </div>
+      )}
+
+      {/* Name */}
+      <span
+        className="text-xs font-semibold tracking-widest uppercase mb-3 block"
+        style={{ color: plan.highlight ? "var(--k-accent)" : "var(--k-muted)" }}
+      >
+        {plan.name}
+      </span>
+
+      {/* Price */}
+      <div className="mb-1">
+        <span className="text-2xl font-bold" style={{ color: "var(--k-text)" }}>
+          {plan.priceUZS === 0 ? "0" : plan.priceUZS.toLocaleString("ru-RU")}
+        </span>
+        <span className="text-xs ml-1" style={{ color: "var(--k-muted)" }}>UZS/мес</span>
+      </div>
+      <span className="text-xs mb-3 block" style={{ color: "var(--k-muted)" }}>{plan.priceUSD} в месяц</span>
+
+      {/* Credits pill */}
+      <div
+        className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg mb-4"
+        style={{ background: "rgba(200, 169, 110, 0.07)", color: "var(--k-accent)" }}
+      >
+        <span>💎</span>
+        <span>{plan.creditsLabel}</span>
+      </div>
+
+      {/* Features */}
+      <ul className="space-y-2 mb-5 flex-1">
+        {plan.features.slice(0, 4).map((f, i) => (
+          <li key={i} className="flex items-start gap-1.5 text-xs" style={{ color: "var(--k-muted)" }}>
+            <span style={{ color: "var(--k-green)", marginTop: "1px", flexShrink: 0 }}>✓</span>
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
+
+      {/* CTA */}
+      <button
+        className="w-full py-2 text-xs font-semibold rounded-lg transition-all"
+        style={
+          plan.ctaVariant === "accent"
+            ? { background: "var(--k-accent)", color: "#111118" }
+            : {
+                background: "transparent",
+                color: "var(--k-accent)",
+                border: "1px solid rgba(200, 169, 110, 0.35)",
+              }
+        }
+      >
+        {plan.cta}
+      </button>
     </div>
   );
 }
