@@ -161,6 +161,11 @@ export default function GeneratePage() {
   const [referenceAudioUrl, setReferenceAudioUrl] = useState("");
   const [ttsVoice, setTtsVoice] = useState("default");
 
+  // Image editing
+  const [imageMode, setImageMode] = useState<"generate" | "edit">("generate");
+  const [referenceImageUrl, setReferenceImageUrl] = useState("");
+  const [imageStrength, setImageStrength] = useState(0.75);
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [jobStatus, setJobStatus] = useState<{
     jobId: string; requestId: string; modelId: string; status: string;
@@ -238,7 +243,16 @@ export default function GeneratePage() {
       const cat = selectedModel.category;
 
       if (cat === "image") {
-        const r = await api.generateImage({ modelId: selectedModelId, prompt: prompt.trim(), negativePrompt: negPrompt || undefined, aspectRatio: availableRatios.includes(aspectRatio) ? aspectRatio : availableRatios[0], numImages });
+        const hasRefImg = imageMode === "edit" && !!referenceImageUrl;
+        const r = await api.generateImage({
+          modelId: selectedModelId,
+          prompt: prompt.trim(),
+          negativePrompt: negPrompt || undefined,
+          aspectRatio: availableRatios.includes(aspectRatio) ? aspectRatio : availableRatios[0],
+          numImages,
+          imageUrl: hasRefImg ? referenceImageUrl : undefined,
+          imageStrength: hasRefImg ? imageStrength : undefined,
+        });
         handleJobResponse(r as Parameters<typeof handleJobResponse>[0], selectedModelId);
 
       } else if (cat === "video") {
@@ -266,7 +280,12 @@ export default function GeneratePage() {
   const canGenerate = (() => {
     if (!selectedModel || isGenerating) return false;
     const cat = selectedModel.category;
-    if (cat === "image" || cat === "video") return !!prompt.trim();
+    if (cat === "image") {
+      if (!prompt.trim()) return false;
+      if (imageMode === "edit" && !referenceImageUrl) return false;
+      return true;
+    }
+    if (cat === "video") return !!prompt.trim();
     if (cat === "motion-control") return !!characterImageUrl && !!referenceVideoUrl;
     if (cat === "lipsync") return !!lipsyncVideoUrl && !!lipsyncAudioUrl;
     if (cat === "tts") return !!ttsText.trim();
@@ -322,14 +341,100 @@ export default function GeneratePage() {
               ))}
             </div>
 
+            {/* ─── Image: Mode toggle + upload ─── */}
+            {selectedModel?.category === "image" && selectedModel.supportsImageInput && (
+              <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+                {/* Mode tabs */}
+                <div className="flex gap-2">
+                  {[
+                    { mode: "generate" as const, icon: "✨", label: "Создать" },
+                    { mode: "edit" as const, icon: "✏️", label: "Редактировать фото" },
+                  ].map(({ mode, icon, label }) => (
+                    <button
+                      key={mode}
+                      onClick={() => { setImageMode(mode); if (mode === "generate") setReferenceImageUrl(""); }}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                      style={
+                        imageMode === mode
+                          ? { background: "var(--k-accent)", color: "#111118" }
+                          : { background: "transparent", color: "var(--k-muted)", border: "1px solid var(--k-border)" }
+                      }
+                    >
+                      <span>{icon}</span>
+                      <span>{label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {imageMode === "generate" && (
+                  <p className="text-xs" style={{ color: "var(--k-muted)" }}>
+                    Введите промпт ниже — ИИ создаст изображение с нуля.
+                  </p>
+                )}
+
+                {imageMode === "edit" && (
+                  <div className="space-y-4">
+                    <p className="text-xs" style={{ color: "var(--k-muted)" }}>
+                      Загрузите исходное изображение — ИИ внесёт изменения на основе вашего промпта.
+                    </p>
+
+                    <FileUpload
+                      label="Исходное изображение"
+                      accept="image/*"
+                      hint="JPG, PNG, WebP · до 20 МБ"
+                      icon="🖼️"
+                      value={referenceImageUrl}
+                      onChange={setReferenceImageUrl}
+                      maxSizeMB={20}
+                    />
+
+                    {referenceImageUrl && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-medium" style={{ color: "var(--k-muted)" }}>
+                            Сила изменений
+                          </p>
+                          <span className="text-xs font-semibold" style={{ color: "var(--k-accent)" }}>
+                            {imageStrength < 0.35 ? "Слабые" : imageStrength < 0.65 ? "Средние" : "Сильные"} · {Math.round(imageStrength * 100)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.1}
+                          max={0.95}
+                          step={0.05}
+                          value={imageStrength}
+                          onChange={(e) => setImageStrength(parseFloat(e.target.value))}
+                          className="w-full accent-[var(--k-accent)]"
+                          style={{ accentColor: "var(--k-accent)" }}
+                        />
+                        <div className="flex justify-between text-xs" style={{ color: "var(--k-muted)" }}>
+                          <span>Близко к оригиналу</span>
+                          <span>Полная переработка</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* ─── Image / Video: Prompt ─── */}
             {selectedModel && (selectedModel.category === "image" || selectedModel.category === "video") && (
               <div className="bg-card border border-border rounded-2xl p-5 space-y-3">
-                <h2 className="text-sm font-semibold">Prompt</h2>
+                <h2 className="text-sm font-semibold">
+                  {selectedModel.category === "image" && imageMode === "edit" ? "Описание изменений" : "Промпт"}
+                </h2>
                 <Textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder={selectedModel.category === "image" ? "Describe the image you want to create..." : "Describe the video scene, motion, and style..."}
+                  placeholder={
+                    selectedModel.category === "image" && imageMode === "edit"
+                      ? "Опишите, что нужно изменить: «Сделай фон заснеженным, добавь тёплое освещение...»"
+                      : selectedModel.category === "image"
+                      ? "Describe the image you want to create..."
+                      : "Describe the video scene, motion, and style..."
+                  }
                   className="min-h-28 bg-muted/50 border-border resize-none text-sm"
                 />
                 <button onClick={() => setShowNeg((v) => !v)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
@@ -574,11 +679,18 @@ export default function GeneratePage() {
               <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-2">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tips for {selectedModel.name}</p>
                 <ul className="text-xs text-muted-foreground space-y-1.5">
-                  {selectedModel.category === "image" && (
+                  {selectedModel.category === "image" && imageMode === "generate" && (
                     <>
-                      <li>• Be specific about lighting, style, and mood</li>
-                      <li>• Add "photorealistic" or "cinematic" for better quality</li>
-                      <li>• Use negative prompt to exclude unwanted elements</li>
+                      <li>• Опишите освещение, стиль, настроение</li>
+                      <li>• Добавьте «фотореалистично» или «кинематографично» для качества</li>
+                      <li>• Используйте негативный промпт чтобы исключить лишнее</li>
+                    </>
+                  )}
+                  {selectedModel.category === "image" && imageMode === "edit" && (
+                    <>
+                      <li>• Опишите конкретно, что нужно изменить</li>
+                      <li>• Сила 30-50% — мягкие правки с сохранением стиля</li>
+                      <li>• Сила 70-95% — кардинальная переработка изображения</li>
                     </>
                   )}
                   {selectedModel.category === "video" && (

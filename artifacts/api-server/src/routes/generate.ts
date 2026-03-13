@@ -60,14 +60,15 @@ async function submitJob(modelId: string, input: Record<string, unknown>, mediaT
 // POST /api/generate/image
 router.post("/generate/image", async (req: Request, res: Response) => {
   try {
-    const { modelId, prompt, negativePrompt, aspectRatio, numImages, seed, imageUrl } = req.body as Record<string, unknown>;
+    const { modelId, prompt, negativePrompt, aspectRatio, numImages, seed, imageUrl, imageStrength } = req.body as Record<string, unknown>;
     if (!modelId || !prompt) return res.status(400).json({ error: "missing_fields", message: "modelId and prompt required" });
     const input: Record<string, unknown> = { prompt };
     if (negativePrompt) input.negative_prompt = negativePrompt;
     if (aspectRatio) input.aspect_ratio = aspectRatio;
     if (numImages) input.num_images = numImages;
     if (seed) input.seed = seed;
-    if (imageUrl) input.image_url = imageUrl;
+    if (imageUrl) { input.image_url = imageUrl; input.image_size = undefined; }
+    if (imageUrl && imageStrength !== undefined) input.strength = imageStrength;
     await submitJob(modelId as string, input, "image", res);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

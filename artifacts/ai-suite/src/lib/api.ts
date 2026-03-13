@@ -52,6 +52,7 @@ export interface ImageGenerationRequest {
   numImages?: number;
   seed?: number;
   imageUrl?: string;
+  imageStrength?: number;
 }
 
 export interface VideoGenerationRequest {
