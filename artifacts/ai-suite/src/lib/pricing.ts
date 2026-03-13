@@ -40,14 +40,14 @@ export const PLANS = [
     name: "FREE",
     priceUZS: 0,
     priceUSD: "$0",
-    credits: 10,
-    creditsLabel: "10 изображений/день",
+    credits: 3,
+    creditsLabel: "3 изображения/день",
     badge: null,
     cta: "Начать бесплатно",
     ctaVariant: "ghost" as const,
     highlight: false,
     features: [
-      "10 изображений в день",
+      "3 изображения в день",
       "Только Wan 2.5",
       "Водяной знак на всех работах",
       "Стандартная очередь",
@@ -115,8 +115,8 @@ export const PLANS = [
 export const CALCULATOR_ROWS = [
   {
     plan: "Free",
-    credits: "10/день",
-    images: "10",
+    credits: "3/день",
+    images: "3",
     wanVideos: "0",
     klingVideos: "0",
     tts: "0",
