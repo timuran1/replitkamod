@@ -1,87 +1,121 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { api, ModelInfo } from "@/lib/api";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { getModelPricing, formatUZS } from "@/lib/pricing";
 
-const PROVIDER_COLORS: Record<string, string> = {
-  Google: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  "Google DeepMind": "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  OpenAI: "bg-green-500/20 text-green-300 border-green-500/30",
-  Kuaishou: "bg-orange-500/20 text-orange-300 border-orange-500/30",
-  "Black Forest Labs": "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-  Recraft: "bg-pink-500/20 text-pink-300 border-pink-500/30",
-  Ideogram: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
-  Alibaba: "bg-red-500/20 text-red-300 border-red-500/30",
-  "Sync Labs": "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
-  SWivid: "bg-teal-500/20 text-teal-300 border-teal-500/30",
-  "fal.ai": "bg-violet-500/20 text-violet-300 border-violet-500/30",
-};
-
-const CATEGORY_CONFIG: Record<string, { icon: string; label: string; gradientClass: string }> = {
-  "text-to-image": { icon: "🖼️", label: "Image", gradientClass: "from-pink-500 to-violet-500" },
-  "text-to-video": { icon: "🎬", label: "Text→Video", gradientClass: "from-violet-500 to-blue-500" },
-  "image-to-video": { icon: "🎞️", label: "Img→Video", gradientClass: "from-blue-500 to-cyan-500" },
-  "motion-control": { icon: "🕺", label: "Motion", gradientClass: "from-orange-500 to-red-500" },
-  "lipsync": { icon: "👄", label: "Lip Sync", gradientClass: "from-rose-500 to-pink-600" },
-  "text-to-speech": { icon: "🎙️", label: "Voice", gradientClass: "from-teal-500 to-emerald-500" },
+const CATEGORY_CONFIG: Record<string, { icon: string; label: string; topColor: string }> = {
+  "text-to-image": { icon: "🖼️", label: "Изображение", topColor: "#C8A96E" },
+  "text-to-video": { icon: "🎬", label: "Текст→Видео", topColor: "#8B6FE8" },
+  "image-to-video": { icon: "🎞️", label: "Фото→Видео", topColor: "#6B8BE8" },
+  "motion-control": { icon: "🕺", label: "Движение", topColor: "#E8936B" },
+  "lipsync": { icon: "👄", label: "Lip Sync", topColor: "#E86B8B" },
+  "text-to-speech": { icon: "🎙️", label: "Голос", topColor: "#3FD68F" },
 };
 
 type FilterKey = "all" | "image" | "video" | "motion-control" | "lipsync" | "tts";
 
-function ModelCard({ model, onGenerate }: { model: ModelInfo; onGenerate: () => void }) {
-  const providerColor = PROVIDER_COLORS[model.provider] || "bg-violet-500/20 text-violet-300 border-violet-500/30";
-  const cfg = CATEGORY_CONFIG[model.type] || { icon: "✨", label: model.type, gradientClass: "from-violet-500 to-blue-500" };
+const FILTER_DEFS: { key: FilterKey; label: string; icon: string; match: (m: ModelInfo) => boolean }[] = [
+  { key: "all", label: "Все", icon: "✦", match: () => true },
+  { key: "image", label: "Изображения", icon: "🖼️", match: (m) => m.category === "image" },
+  { key: "video", label: "Видео", icon: "🎬", match: (m) => m.category === "video" },
+  { key: "motion-control", label: "Движение", icon: "🕺", match: (m) => m.category === "motion-control" },
+  { key: "lipsync", label: "Lip Sync", icon: "👄", match: (m) => m.category === "lipsync" },
+  { key: "tts", label: "Голос", icon: "🎙️", match: (m) => m.category === "tts" },
+];
 
-  const capabilities: string[] = [];
-  if (model.supportsImageInput) capabilities.push("📷 Image Input");
-  if (model.supportsVideoInput) capabilities.push("🎬 Video Input");
-  if (model.supportsAudioInput) capabilities.push("🎵 Audio Input");
-  if (model.supportsDuration) capabilities.push(`⏱️ Up to ${model.maxDuration}s`);
+function CostRow({ modelId }: { modelId: string }) {
+  const p = getModelPricing(modelId);
+  if (!p) return null;
+  return (
+    <div
+      className="flex items-center justify-between text-xs py-2 px-3 rounded-lg mt-3 mb-1"
+      style={{ background: "rgba(200, 169, 110, 0.06)", border: "0.5px solid rgba(200, 169, 110, 0.15)" }}
+    >
+      <span style={{ color: "var(--k-muted)" }}>
+        1 {p.unit} → <strong style={{ color: "var(--k-text)", fontWeight: 600 }}>{p.credits} кр.</strong>
+      </span>
+      <span style={{ color: "var(--k-accent)", fontWeight: 600 }}>~{formatUZS(p.uzs)} UZS</span>
+    </div>
+  );
+}
+
+function ModelCard({ model, onGenerate }: { model: ModelInfo; onGenerate: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  const cfg = CATEGORY_CONFIG[model.type] || { icon: "✨", label: model.type, topColor: "#C8A96E" };
 
   return (
-    <div className="group relative model-card-gradient border border-border rounded-2xl overflow-hidden hover:border-primary/40 transition-all duration-300 hover:shadow-xl hover:shadow-primary/5">
-      <div className={`h-1 w-full bg-gradient-to-r ${cfg.gradientClass}`} />
+    <div
+      className="flex flex-col rounded-xl overflow-hidden transition-all duration-200 cursor-pointer"
+      style={{
+        background: "var(--k-card)",
+        border: hovered ? "0.5px solid rgba(200, 169, 110, 0.3)" : "0.5px solid var(--k-border)",
+        borderRadius: "12px",
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Top accent line */}
+      <div className="h-0.5 w-full" style={{ background: cfg.topColor, opacity: 0.7 }} />
 
-      <div className="p-5">
+      <div className="p-5 flex flex-col flex-1">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-2.5">
-            <span className="text-2xl">{cfg.icon}</span>
+            <span className="text-xl">{cfg.icon}</span>
             <div>
-              <h3 className="font-semibold text-foreground text-sm leading-tight">{model.name}</h3>
-              <span className="text-xs text-muted-foreground">{model.provider}</span>
+              <h3 className="font-semibold text-sm leading-tight" style={{ color: "var(--k-text)" }}>{model.name}</h3>
+              <span className="text-xs" style={{ color: "var(--k-muted)" }}>{model.provider}</span>
             </div>
           </div>
-          <Badge variant="outline" className={`text-xs shrink-0 border ${providerColor}`}>
+          <span
+            className="text-xs px-2 py-0.5 rounded-full shrink-0"
+            style={{
+              background: "rgba(200, 169, 110, 0.1)",
+              color: "var(--k-accent)",
+              border: "0.5px solid rgba(200, 169, 110, 0.2)",
+            }}
+          >
             {cfg.label}
-          </Badge>
+          </span>
         </div>
 
-        <p className="text-sm text-muted-foreground mb-3 leading-relaxed line-clamp-3">{model.description}</p>
+        <p className="text-sm leading-relaxed mb-3 line-clamp-2 flex-1" style={{ color: "var(--k-muted)" }}>
+          {model.description}
+        </p>
 
-        <div className="flex flex-wrap gap-1.5 mb-4">
+        <div className="flex flex-wrap gap-1.5 mb-2">
           {model.tags.slice(0, 3).map((tag) => (
-            <span key={tag} className="text-xs px-2 py-0.5 bg-muted rounded-full text-muted-foreground">
+            <span
+              key={tag}
+              className="text-xs px-2 py-0.5 rounded-full"
+              style={{ background: "rgba(255,255,255,0.04)", color: "var(--k-muted)" }}
+            >
               {tag}
             </span>
           ))}
-          {capabilities.map((cap) => (
-            <span key={cap} className="text-xs px-2 py-0.5 bg-primary/10 rounded-full text-primary/80 border border-primary/20">
-              {cap}
-            </span>
-          ))}
+          {model.supportsImageInput && (
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(139,111,232,0.1)", color: "#8B6FE8" }}>📷 Фото</span>
+          )}
+          {model.supportsVideoInput && (
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(139,111,232,0.1)", color: "#8B6FE8" }}>🎬 Видео</span>
+          )}
         </div>
 
-        <Button
+        <CostRow modelId={model.id} />
+
+        <button
           onClick={onGenerate}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium"
-          size="sm"
+          className="w-full text-sm font-semibold py-2.5 rounded-lg mt-2 transition-all duration-150"
+          style={{
+            background: hovered ? "var(--k-accent)" : "rgba(200, 169, 110, 0.08)",
+            color: hovered ? "#111118" : "var(--k-accent)",
+            border: "1px solid rgba(200, 169, 110, 0.3)",
+          }}
         >
-          {model.category === "tts" ? "Generate Voice →" :
-           model.category === "lipsync" ? "Sync Lips →" :
-           model.category === "motion-control" ? "Transfer Motion →" :
-           "Generate →"}
-        </Button>
+          {model.category === "tts" ? "Сгенерировать голос →" :
+           model.category === "lipsync" ? "Синхронизировать →" :
+           model.category === "motion-control" ? "Перенести движение →" :
+           "Создать →"}
+        </button>
       </div>
     </div>
   );
@@ -89,35 +123,67 @@ function ModelCard({ model, onGenerate }: { model: ModelInfo; onGenerate: () => 
 
 function SkeletonCard() {
   return (
-    <div className="model-card-gradient border border-border rounded-2xl overflow-hidden animate-pulse">
-      <div className="h-1 w-full bg-muted" />
+    <div className="rounded-xl overflow-hidden animate-pulse" style={{ background: "var(--k-card)", border: "0.5px solid var(--k-border)" }}>
+      <div className="h-0.5 w-full bg-white/5" />
       <div className="p-5 space-y-3">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-muted rounded-lg" />
+          <div className="w-8 h-8 rounded-lg bg-white/5" />
           <div className="space-y-1.5 flex-1">
-            <div className="h-3 bg-muted rounded w-3/4" />
-            <div className="h-2.5 bg-muted rounded w-1/2" />
+            <div className="h-3 bg-white/5 rounded w-3/4" />
+            <div className="h-2.5 bg-white/5 rounded w-1/2" />
           </div>
         </div>
-        <div className="h-12 bg-muted rounded" />
+        <div className="h-10 bg-white/5 rounded" />
         <div className="flex gap-1.5">
-          <div className="h-5 w-16 bg-muted rounded-full" />
-          <div className="h-5 w-20 bg-muted rounded-full" />
+          <div className="h-5 w-16 bg-white/5 rounded-full" />
+          <div className="h-5 w-20 bg-white/5 rounded-full" />
         </div>
-        <div className="h-8 bg-muted rounded-lg" />
+        <div className="h-9 bg-white/5 rounded-lg" />
+        <div className="h-9 bg-white/5 rounded-lg" />
       </div>
     </div>
   );
 }
 
-const FILTER_DEFS: { key: FilterKey; label: string; icon: string; match: (m: ModelInfo) => boolean }[] = [
-  { key: "all", label: "All", icon: "✨", match: () => true },
-  { key: "image", label: "Images", icon: "🖼️", match: (m) => m.category === "image" },
-  { key: "video", label: "Video", icon: "🎬", match: (m) => m.category === "video" },
-  { key: "motion-control", label: "Motion", icon: "🕺", match: (m) => m.category === "motion-control" },
-  { key: "lipsync", label: "Lip Sync", icon: "👄", match: (m) => m.category === "lipsync" },
-  { key: "tts", label: "Voice", icon: "🎙️", match: (m) => m.category === "tts" },
-];
+function Hero({ onStart }: { onStart: () => void }) {
+  return (
+    <div className="text-center mb-12 pt-4">
+      {/* Pill badge */}
+      <div className="inline-flex items-center gap-2 text-xs px-4 py-1.5 rounded-full mb-6"
+        style={{ background: "rgba(200, 169, 110, 0.08)", border: "0.5px solid rgba(200, 169, 110, 0.25)", color: "var(--k-accent)" }}>
+        <span>✦</span>
+        <span>20 AI моделей · Оплата в UZS</span>
+      </div>
+
+      {/* H1 */}
+      <h1 className="text-3xl md:text-5xl font-bold mb-4 leading-tight" style={{ color: "var(--k-text)" }}>
+        Создавайте{" "}
+        <span className="gradient-text-gold">кино</span>
+        {" "}с помощью ИИ
+      </h1>
+
+      {/* Subtitle */}
+      <p className="text-base md:text-lg max-w-2xl mx-auto mb-8 leading-relaxed" style={{ color: "var(--k-muted)" }}>
+        Изображения, видео, голос, синхронизация губ — всё в одной студии.
+        <br className="hidden md:block" />
+        Оплата через Click, Payme, Humo.
+      </p>
+
+      {/* CTAs */}
+      <div className="flex items-center justify-center gap-3 flex-wrap">
+        <button onClick={onStart} className="k-btn-accent px-6 py-2.5 text-sm">
+          Попробовать бесплатно
+        </button>
+        <button
+          className="k-btn-outline px-6 py-2.5 text-sm"
+          style={{ color: "var(--k-text)" }}
+        >
+          Смотреть примеры
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function ExplorePage() {
   const [models, setModels] = useState<ModelInfo[]>([]);
@@ -126,45 +192,40 @@ export default function ExplorePage() {
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    api.listModels()
-      .then((r) => setModels(r.models))
-      .finally(() => setLoading(false));
+    api.listModels().then((r) => setModels(r.models)).finally(() => setLoading(false));
   }, []);
 
   const currentFilter = FILTER_DEFS.find((f) => f.key === filter)!;
   const filtered = models.filter(currentFilter.match);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-4 py-8 md:py-12">
-        {/* Hero */}
-        <div className="text-center mb-10">
-          <h1 className="text-3xl md:text-5xl font-bold mb-3 gradient-text">
-            AI Media Suite
-          </h1>
-          <p className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto">
-            Generate images, videos, voice, lip sync, and motion transfer — all powered by state-of-the-art AI.
-          </p>
-        </div>
+    <div className="min-h-screen" style={{ background: "var(--k-bg)" }}>
+      <div className="max-w-6xl mx-auto px-4 py-8 md:py-10">
+        <Hero onStart={() => navigate("/generate")} />
 
         {/* Filter tabs */}
         <div className="flex items-center justify-center gap-2 flex-wrap mb-8">
           {FILTER_DEFS.map(({ key, label, icon, match }) => {
+            const active = filter === key;
             const count = models.filter(match).length;
             return (
               <button
                 key={key}
                 onClick={() => setFilter(key)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                  filter === key
-                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all"
+                style={
+                  active
+                    ? { background: "var(--k-accent)", color: "#111118" }
+                    : { background: "transparent", color: "var(--k-muted)", border: "1px solid var(--k-border)" }
+                }
               >
                 <span>{icon}</span>
                 <span>{label}</span>
                 {!loading && key !== "all" && (
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${filter === key ? "bg-white/20" : "bg-muted-foreground/20"}`}>
+                  <span
+                    className="text-xs px-1.5 py-0.5 rounded-full"
+                    style={{ background: active ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.06)" }}
+                  >
                     {count}
                   </span>
                 )}
@@ -173,26 +234,20 @@ export default function ExplorePage() {
           })}
         </div>
 
-        {/* Category description */}
+        {/* Info banners */}
         {filter === "motion-control" && (
-          <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 mb-6 text-center">
-            <p className="text-sm text-orange-300">
-              🕺 <strong>Motion Transfer</strong> — Upload a character image and a reference video to copy realistic motion onto your character.
-            </p>
+          <div className="rounded-xl p-4 mb-6 text-center text-sm" style={{ background: "rgba(232,147,107,0.08)", border: "0.5px solid rgba(232,147,107,0.2)", color: "#E8936B" }}>
+            🕺 <strong>Перенос движения</strong> — загрузите фото персонажа и референс-видео с движением.
           </div>
         )}
         {filter === "lipsync" && (
-          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 mb-6 text-center">
-            <p className="text-sm text-rose-300">
-              👄 <strong>Lip Sync</strong> — Upload any face video + audio to generate perfectly synced lips. Works with any language.
-            </p>
+          <div className="rounded-xl p-4 mb-6 text-center text-sm" style={{ background: "rgba(232,107,139,0.08)", border: "0.5px solid rgba(232,107,139,0.2)", color: "#E86B8B" }}>
+            👄 <strong>Синхронизация губ</strong> — загрузите видео с лицом + аудио. Работает с любым языком.
           </div>
         )}
         {filter === "tts" && (
-          <div className="bg-teal-500/10 border border-teal-500/20 rounded-xl p-4 mb-6 text-center">
-            <p className="text-sm text-teal-300">
-              🎙️ <strong>Text to Speech</strong> — Convert text to natural-sounding voice. Supports voice cloning with a reference audio clip.
-            </p>
+          <div className="rounded-xl p-4 mb-6 text-center text-sm" style={{ background: "rgba(63,214,143,0.08)", border: "0.5px solid rgba(63,214,143,0.2)", color: "#3FD68F" }}>
+            🎙️ <strong>Текст в речь</strong> — конвертируйте текст в голос. F5-TTS поддерживает клонирование голоса.
           </div>
         )}
 
@@ -210,9 +265,7 @@ export default function ExplorePage() {
         </div>
 
         {!loading && filtered.length === 0 && (
-          <div className="text-center py-16 text-muted-foreground">
-            No models found for this filter.
-          </div>
+          <div className="text-center py-16" style={{ color: "var(--k-muted)" }}>Нет моделей для этого фильтра.</div>
         )}
       </div>
     </div>

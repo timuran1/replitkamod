@@ -1,0 +1,153 @@
+REDESIGN THE ENTIRE APP UI + ADD PRICING SYSTEM. Here are the exact requirements:
+
+━━━━━━━━━━━━━━━━━━━━━━
+DESIGN SYSTEM (replace all purple gradients)
+━━━━━━━━━━━━━━━━━━━━━━
+
+New color palette (CSS variables, apply globally):
+  --k-bg: #0A0A0F          ← main background
+  --k-surface: #111118     ← nav/sidebar
+  --k-card: #16161E        ← all cards
+  --k-border: rgba(255,255,255,0.07)
+  --k-border-hover: rgba(255,255,255,0.15)
+  --k-text: #F0EEF8
+  --k-muted: #7A7890
+  --k-accent: #C8A96E      ← PRIMARY accent (gold/amber) — replaces purple
+  --k-accent2: #8B6FE8     ← secondary (subtle purple, used sparingly)
+  --k-green: #3FD68F
+  --k-danger: #FF6B6B
+
+Rules:
+- REMOVE all gradient backgrounds on buttons and headers
+- Primary CTA buttons: solid --k-accent background, dark text, no gradient
+- Cards: --k-card background, 0.5px border --k-border, border-radius 12px
+- NO glow effects, NO neon, NO purple gradient hero sections
+- Logo: gradient only on the "K" icon (gold→purple), rest is flat
+- Filter tabs: active = solid --k-accent pill, inactive = ghost with --k-border
+- Font: system-ui or Inter, weights 400/600/700 only
+- Generate buttons on cards: ghost style (accent border + tinted bg) → on hover fills with --k-accent
+
+━━━━━━━━━━━━━━━━━━━━━━
+NAVIGATION BAR
+━━━━━━━━━━━━━━━━━━━━━━
+
+Left: Logo "Kamod AI" with small square icon (gradient K)
+Center: Links → Студия | Галерея | Тарифы | Для бизнеса
+Right: 
+  - Credit balance pill: "💎 550 кредитов" (amber tinted)
+  - "Войти" CTA button in --k-accent
+
+━━━━━━━━━━━━━━━━━━━━━━
+MODEL CARDS — add pricing info to each card
+━━━━━━━━━━━━━━━━━━━━━━
+
+Each model card must show a cost row between the tags and the Generate button:
+
+<div class="card-cost-row">
+  <span>1 изображение → <strong>2 кредита</strong></span>
+  <span style="color: var(--k-accent)">~727 UZS</span>
+</div>
+
+Credit costs per model:
+- Nano Banana 2 / Pro: 2 credits per image
+- FLUX Schnell: 1 credit per image  
+- FLUX Pro: 3 credits per image
+- Recraft V3: 2 credits per image
+- Ideogram V2: 2 credits per image
+- Wan 2.2 (5s video): 25 credits
+- Kling 3.0 Pro (5s video): 50 credits
+- Veo 3.1 (5s video): 250 credits
+- Sora 2 (5s video): 200 credits
+- Motion Transfer (Kling Motion): 60 credits
+- Lip Sync (Sync Labs): 30 credits per minute
+- Voice TTS (F5, TADA): 5 credits per generation
+
+Display formula: credits × 363 UZS = UZS price (363 = Creator plan rate)
+Show both: "X кредитов · ~Y UZS"
+
+━━━━━━━━━━━━━━━━━━━━━━
+ADD PRICING PAGE / SECTION
+━━━━━━━━━━━━━━━━━━━━━━
+
+Create a /pricing route AND embed a compact version in the main page.
+
+4 plans displayed as cards in a horizontal row:
+
+FREE
+- 0 UZS / $0
+- 10 изображений в день (Wan 2.5 only)
+- Watermark on all outputs
+- Label: "Начать бесплатно"
+
+STARTER
+- 89 900 UZS / ≈$7 в месяц
+- 200 кредитов в месяц
+- = ~100 изображений или 4 видео (5с)
+- Модели: Nan Banana, Wan 2.2, FLUX Schnell
+- Label: "Выбрать"
+
+CREATOR ← mark as "⭐ ХИТ" (best value badge)
+- 199 900 UZS / ≈$15.6 в месяц
+- 550 кредитов в месяц
+- = ~275 изображений или 11 видео
+- All models including Kling 3.0
+- Cinematic prompt presets
+- Label: "Выбрать" (in accent color button)
+- Card border: 1.5px solid var(--k-accent)
+
+STUDIO
+- 379 900 UZS / ≈$29.7 в месяц
+- 1 100 кредитов в месяц
+- = ~550 изображений или 22 видео
+- All models including Veo 3.1 and Sora 2
+- Upscale HD unlimited
+- AI Director workflow
+- Priority queue
+- Label: "Выбрать"
+
+Payment icons row below plans: Click | Payme | Humo | Uzcard
+Add small text: "Безопасная оплата · Отмена в любое время"
+
+━━━━━━━━━━━━━━━━━━━━━━
+CREDIT CALCULATOR (add to pricing page)
+━━━━━━━━━━━━━━━━━━━━━━
+
+Simple interactive table showing: "Сколько контента вы получите?"
+Rows for each plan, columns: Plan | Credits | Images (NB Pro) | Videos 5s (Wan) | Videos 5s (Kling) | TTS sessions
+Pre-calculated values:
+- Free: 10/day | 10 | 0 | 0 | 0
+- Starter 200: | 100 | 8 | 4 | 40  
+- Creator 550: | 275 | 22 | 11 | 110
+- Studio 1100: | 550 | 44 | 22 | 220
+
+━━━━━━━━━━━━━━━━━━━━━━
+BOTTOM STATUS BAR
+━━━━━━━━━━━━━━━━━━━━━━
+
+Sticky bottom bar (or footer):
+Left: green dot + "Все системы работают · 20 моделей активны"
+Right: "Click · Payme · Humo · Uzcard"
+
+━━━━━━━━━━━━━━━━━━━━━━
+HERO SECTION
+━━━━━━━━━━━━━━━━━━━━━━
+
+Replace current hero with:
+- Small pill badge: "✦ 20 AI моделей · Оплата в UZS"
+- H1: "Создавайте кино с помощью ИИ"  
+  (word "кино" in gradient text: gold→purple)
+- Subtitle: "Изображения, видео, голос, синхронизация губ — всё в одной студии. Оплата через Click, Payme, Humo."
+- Two buttons: "Попробовать бесплатно" (accent) + "Смотреть примеры" (ghost)
+- NO animated gradients, NO glow, NO purple background
+
+━━━━━━━━━━━━━━━━━━━━━━
+WHAT NOT TO DO
+━━━━━━━━━━━━━━━━━━━━━━
+
+- Do NOT use purple/violet as primary color anywhere
+- Do NOT add gradient meshes or animated backgrounds
+- Do NOT use neon glow effects
+- Do NOT make cards too busy — keep them clean and minimal
+- Do NOT use white backgrounds — keep dark throughout
+
+Apply all changes now. Keep all existing API integrations and routing intact.
