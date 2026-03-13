@@ -6,7 +6,10 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export type GetJobStatusParams = {
-  requestId: string;
+export interface LipsyncGenerationRequest {
   modelId: string;
-};
+  /** Face video URL */
+  videoUrl: string;
+  /** Audio to sync URL */
+  audioUrl: string;
+}

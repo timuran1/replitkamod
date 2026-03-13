@@ -3,20 +3,20 @@
  * Do not edit manually.
  * Api
  * AI Media Suite API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
-import type { ImageGenerationRequestAspectRatio } from "./imageGenerationRequestAspectRatio";
 
 export interface ImageGenerationRequest {
-  /** fal.ai model endpoint ID e.g. fal-ai/nano-banana-2 */
   modelId: string;
   prompt: string;
   negativePrompt?: string;
-  aspectRatio?: ImageGenerationRequestAspectRatio;
+  aspectRatio?: string;
   /**
    * @minimum 1
    * @maximum 4
    */
   numImages?: number;
   seed?: number;
+  /** Source image URL for image-to-image models */
+  imageUrl?: string;
 }

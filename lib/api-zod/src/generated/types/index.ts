@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * AI Media Suite API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 
 export * from "./errorResponse";
@@ -13,13 +13,16 @@ export * from "./generationResponseStatus";
 export * from "./getJobStatusParams";
 export * from "./healthStatus";
 export * from "./imageGenerationRequest";
-export * from "./imageGenerationRequestAspectRatio";
 export * from "./jobStatusResponse";
 export * from "./jobStatusResponseStatus";
+export * from "./lipsyncGenerationRequest";
 export * from "./mediaOutput";
 export * from "./modelInfo";
-export * from "./modelInfoType";
+export * from "./modelInfoCategory";
 export * from "./modelsListResponse";
+export * from "./motionGenerationRequest";
+export * from "./motionGenerationRequestCharacterOrientation";
+export * from "./ttsGenerationRequest";
+export * from "./uploadFileBody";
+export * from "./uploadResponse";
 export * from "./videoGenerationRequest";
-export * from "./videoGenerationRequestAspectRatio";
-export * from "./videoGenerationRequestDuration";

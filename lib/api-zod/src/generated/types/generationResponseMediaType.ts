@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * AI Media Suite API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 
 export type GenerationResponseMediaType =
@@ -12,4 +12,5 @@ export type GenerationResponseMediaType =
 export const GenerationResponseMediaType = {
   image: "image",
   video: "video",
+  audio: "audio",
 } as const;

@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * AI Media Suite API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import * as zod from "zod";
 
@@ -15,28 +15,39 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
+ * @summary Upload a file to fal.ai storage
+ */
+export const UploadFileBody = zod.object({
+  file: zod.instanceof(File),
+});
+
+export const UploadFileResponse = zod.object({
+  url: zod.string(),
+});
+
+/**
  * @summary Generate image using AI model
  */
 export const generateImageBodyNumImagesMax = 4;
 
 export const GenerateImageBody = zod.object({
-  modelId: zod
-    .string()
-    .describe("fal.ai model endpoint ID e.g. fal-ai\/nano-banana-2"),
+  modelId: zod.string(),
   prompt: zod.string(),
   negativePrompt: zod.string().optional(),
-  aspectRatio: zod
-    .enum(["1:1", "16:9", "9:16", "4:3", "3:4", "21:9"])
-    .optional(),
+  aspectRatio: zod.string().optional(),
   numImages: zod.number().min(1).max(generateImageBodyNumImagesMax).optional(),
   seed: zod.number().optional(),
+  imageUrl: zod
+    .string()
+    .optional()
+    .describe("Source image URL for image-to-image models"),
 });
 
 export const GenerateImageResponse = zod.object({
   jobId: zod.string(),
   requestId: zod.string().optional(),
   status: zod.enum(["queued", "in_progress", "completed", "failed"]),
-  mediaType: zod.enum(["image", "video"]),
+  mediaType: zod.enum(["image", "video", "audio"]),
   outputs: zod
     .array(
       zod.object({
@@ -55,27 +66,112 @@ export const GenerateImageResponse = zod.object({
  * @summary Generate video using AI model
  */
 export const GenerateVideoBody = zod.object({
-  modelId: zod
-    .string()
-    .describe(
-      "fal.ai model endpoint ID e.g. fal-ai\/kling-video\/v3\/pro\/text-to-video",
-    ),
+  modelId: zod.string(),
   prompt: zod.string(),
   negativePrompt: zod.string().optional(),
-  duration: zod.enum(["5", "10"]).optional(),
-  aspectRatio: zod.enum(["16:9", "9:16", "1:1"]).optional(),
-  imageUrl: zod
-    .string()
-    .optional()
-    .describe("Source image for image-to-video models"),
+  duration: zod.string().optional(),
+  aspectRatio: zod.string().optional(),
+  imageUrl: zod.string().optional(),
   seed: zod.number().optional(),
+  generateAudio: zod.boolean().optional(),
 });
 
 export const GenerateVideoResponse = zod.object({
   jobId: zod.string(),
   requestId: zod.string().optional(),
   status: zod.enum(["queued", "in_progress", "completed", "failed"]),
-  mediaType: zod.enum(["image", "video"]),
+  mediaType: zod.enum(["image", "video", "audio"]),
+  outputs: zod
+    .array(
+      zod.object({
+        url: zod.string(),
+        contentType: zod.string().optional(),
+        width: zod.number().optional(),
+        height: zod.number().optional(),
+        duration: zod.number().optional(),
+      }),
+    )
+    .optional(),
+  error: zod.string().optional(),
+});
+
+/**
+ * @summary Motion control video generation
+ */
+export const GenerateMotionBody = zod.object({
+  modelId: zod.string(),
+  imageUrl: zod.string().describe("Character\/subject image URL"),
+  videoUrl: zod.string().describe("Reference motion video URL"),
+  prompt: zod.string().optional(),
+  characterOrientation: zod.enum(["video", "image"]).optional(),
+});
+
+export const GenerateMotionResponse = zod.object({
+  jobId: zod.string(),
+  requestId: zod.string().optional(),
+  status: zod.enum(["queued", "in_progress", "completed", "failed"]),
+  mediaType: zod.enum(["image", "video", "audio"]),
+  outputs: zod
+    .array(
+      zod.object({
+        url: zod.string(),
+        contentType: zod.string().optional(),
+        width: zod.number().optional(),
+        height: zod.number().optional(),
+        duration: zod.number().optional(),
+      }),
+    )
+    .optional(),
+  error: zod.string().optional(),
+});
+
+/**
+ * @summary Lip sync video to audio
+ */
+export const GenerateLipsyncBody = zod.object({
+  modelId: zod.string(),
+  videoUrl: zod.string().describe("Face video URL"),
+  audioUrl: zod.string().describe("Audio to sync URL"),
+});
+
+export const GenerateLipsyncResponse = zod.object({
+  jobId: zod.string(),
+  requestId: zod.string().optional(),
+  status: zod.enum(["queued", "in_progress", "completed", "failed"]),
+  mediaType: zod.enum(["image", "video", "audio"]),
+  outputs: zod
+    .array(
+      zod.object({
+        url: zod.string(),
+        contentType: zod.string().optional(),
+        width: zod.number().optional(),
+        height: zod.number().optional(),
+        duration: zod.number().optional(),
+      }),
+    )
+    .optional(),
+  error: zod.string().optional(),
+});
+
+/**
+ * @summary Text to speech
+ */
+export const GenerateTtsBody = zod.object({
+  modelId: zod.string(),
+  text: zod.string(),
+  voice: zod.string().optional(),
+  speed: zod.number().optional(),
+  referenceAudioUrl: zod
+    .string()
+    .optional()
+    .describe("Reference voice audio URL for voice cloning"),
+});
+
+export const GenerateTtsResponse = zod.object({
+  jobId: zod.string(),
+  requestId: zod.string().optional(),
+  status: zod.enum(["queued", "in_progress", "completed", "failed"]),
+  mediaType: zod.enum(["image", "video", "audio"]),
   outputs: zod
     .array(
       zod.object({
@@ -131,13 +227,23 @@ export const ListModelsResponse = zod.object({
       id: zod.string(),
       name: zod.string(),
       provider: zod.string(),
-      type: zod.enum(["text-to-image", "text-to-video", "image-to-video"]),
+      category: zod.enum([
+        "image",
+        "video",
+        "motion-control",
+        "lipsync",
+        "tts",
+      ]),
+      type: zod.string(),
       description: zod.string().optional(),
       tags: zod.array(zod.string()).optional(),
       supportsDuration: zod.boolean().optional(),
       supportsImageInput: zod.boolean().optional(),
+      supportsVideoInput: zod.boolean().optional(),
+      supportsAudioInput: zod.boolean().optional(),
       maxDuration: zod.number().optional(),
       aspectRatios: zod.array(zod.string()).optional(),
+      voices: zod.array(zod.string()).optional(),
     }),
   ),
 });

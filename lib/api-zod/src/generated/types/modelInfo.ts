@@ -3,19 +3,23 @@
  * Do not edit manually.
  * Api
  * AI Media Suite API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
-import type { ModelInfoType } from "./modelInfoType";
+import type { ModelInfoCategory } from "./modelInfoCategory";
 
 export interface ModelInfo {
   id: string;
   name: string;
   provider: string;
-  type: ModelInfoType;
+  category: ModelInfoCategory;
+  type: string;
   description?: string;
   tags?: string[];
   supportsDuration?: boolean;
   supportsImageInput?: boolean;
+  supportsVideoInput?: boolean;
+  supportsAudioInput?: boolean;
   maxDuration?: number;
   aspectRatios?: string[];
+  voices?: string[];
 }

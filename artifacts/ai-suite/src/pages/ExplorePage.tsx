@@ -9,44 +9,55 @@ const PROVIDER_COLORS: Record<string, string> = {
   "Google DeepMind": "bg-blue-500/20 text-blue-300 border-blue-500/30",
   OpenAI: "bg-green-500/20 text-green-300 border-green-500/30",
   Kuaishou: "bg-orange-500/20 text-orange-300 border-orange-500/30",
+  "Black Forest Labs": "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+  Recraft: "bg-pink-500/20 text-pink-300 border-pink-500/30",
+  Ideogram: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
+  Alibaba: "bg-red-500/20 text-red-300 border-red-500/30",
+  "Sync Labs": "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
+  SWivid: "bg-teal-500/20 text-teal-300 border-teal-500/30",
+  "fal.ai": "bg-violet-500/20 text-violet-300 border-violet-500/30",
 };
 
-const TYPE_ICONS: Record<string, string> = {
-  "text-to-image": "🖼️",
-  "text-to-video": "🎬",
-  "image-to-video": "🎞️",
+const CATEGORY_CONFIG: Record<string, { icon: string; label: string; gradientClass: string }> = {
+  "text-to-image": { icon: "🖼️", label: "Image", gradientClass: "from-pink-500 to-violet-500" },
+  "text-to-video": { icon: "🎬", label: "Text→Video", gradientClass: "from-violet-500 to-blue-500" },
+  "image-to-video": { icon: "🎞️", label: "Img→Video", gradientClass: "from-blue-500 to-cyan-500" },
+  "motion-control": { icon: "🕺", label: "Motion", gradientClass: "from-orange-500 to-red-500" },
+  "lipsync": { icon: "👄", label: "Lip Sync", gradientClass: "from-rose-500 to-pink-600" },
+  "text-to-speech": { icon: "🎙️", label: "Voice", gradientClass: "from-teal-500 to-emerald-500" },
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  "text-to-image": "Image",
-  "text-to-video": "Video",
-  "image-to-video": "Img→Video",
-};
+type FilterKey = "all" | "image" | "video" | "motion-control" | "lipsync" | "tts";
 
 function ModelCard({ model, onGenerate }: { model: ModelInfo; onGenerate: () => void }) {
   const providerColor = PROVIDER_COLORS[model.provider] || "bg-violet-500/20 text-violet-300 border-violet-500/30";
-  const isVideo = model.type !== "text-to-image";
+  const cfg = CATEGORY_CONFIG[model.type] || { icon: "✨", label: model.type, gradientClass: "from-violet-500 to-blue-500" };
+
+  const capabilities: string[] = [];
+  if (model.supportsImageInput) capabilities.push("📷 Image Input");
+  if (model.supportsVideoInput) capabilities.push("🎬 Video Input");
+  if (model.supportsAudioInput) capabilities.push("🎵 Audio Input");
+  if (model.supportsDuration) capabilities.push(`⏱️ Up to ${model.maxDuration}s`);
 
   return (
     <div className="group relative model-card-gradient border border-border rounded-2xl overflow-hidden hover:border-primary/40 transition-all duration-300 hover:shadow-xl hover:shadow-primary/5">
-      {/* Header gradient bar */}
-      <div className={`h-1 w-full ${isVideo ? "bg-gradient-to-r from-violet-500 to-blue-500" : "bg-gradient-to-r from-pink-500 to-violet-500"}`} />
+      <div className={`h-1 w-full bg-gradient-to-r ${cfg.gradientClass}`} />
 
       <div className="p-5">
         <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">{TYPE_ICONS[model.type]}</span>
+          <div className="flex items-center gap-2.5">
+            <span className="text-2xl">{cfg.icon}</span>
             <div>
               <h3 className="font-semibold text-foreground text-sm leading-tight">{model.name}</h3>
               <span className="text-xs text-muted-foreground">{model.provider}</span>
             </div>
           </div>
           <Badge variant="outline" className={`text-xs shrink-0 border ${providerColor}`}>
-            {TYPE_LABELS[model.type]}
+            {cfg.label}
           </Badge>
         </div>
 
-        <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{model.description}</p>
+        <p className="text-sm text-muted-foreground mb-3 leading-relaxed line-clamp-3">{model.description}</p>
 
         <div className="flex flex-wrap gap-1.5 mb-4">
           {model.tags.slice(0, 3).map((tag) => (
@@ -54,11 +65,11 @@ function ModelCard({ model, onGenerate }: { model: ModelInfo; onGenerate: () => 
               {tag}
             </span>
           ))}
-          {model.supportsDuration && (
-            <span className="text-xs px-2 py-0.5 bg-muted rounded-full text-muted-foreground">
-              up to {model.maxDuration}s
+          {capabilities.map((cap) => (
+            <span key={cap} className="text-xs px-2 py-0.5 bg-primary/10 rounded-full text-primary/80 border border-primary/20">
+              {cap}
             </span>
-          )}
+          ))}
         </div>
 
         <Button
@@ -66,7 +77,10 @@ function ModelCard({ model, onGenerate }: { model: ModelInfo; onGenerate: () => 
           className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium"
           size="sm"
         >
-          Generate →
+          {model.category === "tts" ? "Generate Voice →" :
+           model.category === "lipsync" ? "Sync Lips →" :
+           model.category === "motion-control" ? "Transfer Motion →" :
+           "Generate →"}
         </Button>
       </div>
     </div>
@@ -96,10 +110,19 @@ function SkeletonCard() {
   );
 }
 
+const FILTER_DEFS: { key: FilterKey; label: string; icon: string; match: (m: ModelInfo) => boolean }[] = [
+  { key: "all", label: "All", icon: "✨", match: () => true },
+  { key: "image", label: "Images", icon: "🖼️", match: (m) => m.category === "image" },
+  { key: "video", label: "Video", icon: "🎬", match: (m) => m.category === "video" },
+  { key: "motion-control", label: "Motion", icon: "🕺", match: (m) => m.category === "motion-control" },
+  { key: "lipsync", label: "Lip Sync", icon: "👄", match: (m) => m.category === "lipsync" },
+  { key: "tts", label: "Voice", icon: "🎙️", match: (m) => m.category === "tts" },
+];
+
 export default function ExplorePage() {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "image" | "video">("all");
+  const [filter, setFilter] = useState<FilterKey>("all");
   const [, navigate] = useLocation();
 
   useEffect(() => {
@@ -108,14 +131,8 @@ export default function ExplorePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = models.filter((m) => {
-    if (filter === "image") return m.type === "text-to-image";
-    if (filter === "video") return m.type !== "text-to-image";
-    return true;
-  });
-
-  const imageCount = models.filter((m) => m.type === "text-to-image").length;
-  const videoCount = models.filter((m) => m.type !== "text-to-image").length;
+  const currentFilter = FILTER_DEFS.find((f) => f.key === filter)!;
+  const filtered = models.filter(currentFilter.match);
 
   return (
     <div className="min-h-screen bg-background">
@@ -126,30 +143,58 @@ export default function ExplorePage() {
             AI Media Suite
           </h1>
           <p className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto">
-            Generate stunning images and videos with the world's most powerful AI models — all in one place.
+            Generate images, videos, voice, lip sync, and motion transfer — all powered by state-of-the-art AI.
           </p>
         </div>
 
         {/* Filter tabs */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {[
-            { key: "all", label: `All Models (${models.length})` },
-            { key: "image", label: `Images (${imageCount})` },
-            { key: "video", label: `Videos (${videoCount})` },
-          ].map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setFilter(key as typeof filter)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                filter === key
-                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="flex items-center justify-center gap-2 flex-wrap mb-8">
+          {FILTER_DEFS.map(({ key, label, icon, match }) => {
+            const count = models.filter(match).length;
+            return (
+              <button
+                key={key}
+                onClick={() => setFilter(key)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  filter === key
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                <span>{icon}</span>
+                <span>{label}</span>
+                {!loading && key !== "all" && (
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${filter === key ? "bg-white/20" : "bg-muted-foreground/20"}`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
+
+        {/* Category description */}
+        {filter === "motion-control" && (
+          <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 mb-6 text-center">
+            <p className="text-sm text-orange-300">
+              🕺 <strong>Motion Transfer</strong> — Upload a character image and a reference video to copy realistic motion onto your character.
+            </p>
+          </div>
+        )}
+        {filter === "lipsync" && (
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 mb-6 text-center">
+            <p className="text-sm text-rose-300">
+              👄 <strong>Lip Sync</strong> — Upload any face video + audio to generate perfectly synced lips. Works with any language.
+            </p>
+          </div>
+        )}
+        {filter === "tts" && (
+          <div className="bg-teal-500/10 border border-teal-500/20 rounded-xl p-4 mb-6 text-center">
+            <p className="text-sm text-teal-300">
+              🎙️ <strong>Text to Speech</strong> — Convert text to natural-sounding voice. Supports voice cloning with a reference audio clip.
+            </p>
+          </div>
+        )}
 
         {/* Model grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

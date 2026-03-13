@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * AI Media Suite API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 export interface HealthStatus {
   status: string;
@@ -14,59 +14,69 @@ export interface ErrorResponse {
   message?: string;
 }
 
-export type ImageGenerationRequestAspectRatio =
-  (typeof ImageGenerationRequestAspectRatio)[keyof typeof ImageGenerationRequestAspectRatio];
-
-export const ImageGenerationRequestAspectRatio = {
-  "1:1": "1:1",
-  "16:9": "16:9",
-  "9:16": "9:16",
-  "4:3": "4:3",
-  "3:4": "3:4",
-  "21:9": "21:9",
-} as const;
+export interface UploadResponse {
+  url: string;
+}
 
 export interface ImageGenerationRequest {
-  /** fal.ai model endpoint ID e.g. fal-ai/nano-banana-2 */
   modelId: string;
   prompt: string;
   negativePrompt?: string;
-  aspectRatio?: ImageGenerationRequestAspectRatio;
+  aspectRatio?: string;
   /**
    * @minimum 1
    * @maximum 4
    */
   numImages?: number;
   seed?: number;
+  /** Source image URL for image-to-image models */
+  imageUrl?: string;
 }
 
-export type VideoGenerationRequestDuration =
-  (typeof VideoGenerationRequestDuration)[keyof typeof VideoGenerationRequestDuration];
-
-export const VideoGenerationRequestDuration = {
-  NUMBER_5: "5",
-  NUMBER_10: "10",
-} as const;
-
-export type VideoGenerationRequestAspectRatio =
-  (typeof VideoGenerationRequestAspectRatio)[keyof typeof VideoGenerationRequestAspectRatio];
-
-export const VideoGenerationRequestAspectRatio = {
-  "16:9": "16:9",
-  "9:16": "9:16",
-  "1:1": "1:1",
-} as const;
-
 export interface VideoGenerationRequest {
-  /** fal.ai model endpoint ID e.g. fal-ai/kling-video/v3/pro/text-to-video */
   modelId: string;
   prompt: string;
   negativePrompt?: string;
-  duration?: VideoGenerationRequestDuration;
-  aspectRatio?: VideoGenerationRequestAspectRatio;
-  /** Source image for image-to-video models */
+  duration?: string;
+  aspectRatio?: string;
   imageUrl?: string;
   seed?: number;
+  generateAudio?: boolean;
+}
+
+export type MotionGenerationRequestCharacterOrientation =
+  (typeof MotionGenerationRequestCharacterOrientation)[keyof typeof MotionGenerationRequestCharacterOrientation];
+
+export const MotionGenerationRequestCharacterOrientation = {
+  video: "video",
+  image: "image",
+} as const;
+
+export interface MotionGenerationRequest {
+  modelId: string;
+  /** Character/subject image URL */
+  imageUrl: string;
+  /** Reference motion video URL */
+  videoUrl: string;
+  prompt?: string;
+  characterOrientation?: MotionGenerationRequestCharacterOrientation;
+}
+
+export interface LipsyncGenerationRequest {
+  modelId: string;
+  /** Face video URL */
+  videoUrl: string;
+  /** Audio to sync URL */
+  audioUrl: string;
+}
+
+export interface TtsGenerationRequest {
+  modelId: string;
+  text: string;
+  voice?: string;
+  speed?: number;
+  /** Reference voice audio URL for voice cloning */
+  referenceAudioUrl?: string;
 }
 
 export type GenerationResponseStatus =
@@ -85,6 +95,7 @@ export type GenerationResponseMediaType =
 export const GenerationResponseMediaType = {
   image: "image",
   video: "video",
+  audio: "audio",
 } as const;
 
 export interface MediaOutput {
@@ -124,30 +135,41 @@ export interface JobStatusResponse {
   logs?: string[];
 }
 
-export type ModelInfoType = (typeof ModelInfoType)[keyof typeof ModelInfoType];
+export type ModelInfoCategory =
+  (typeof ModelInfoCategory)[keyof typeof ModelInfoCategory];
 
-export const ModelInfoType = {
-  "text-to-image": "text-to-image",
-  "text-to-video": "text-to-video",
-  "image-to-video": "image-to-video",
+export const ModelInfoCategory = {
+  image: "image",
+  video: "video",
+  "motion-control": "motion-control",
+  lipsync: "lipsync",
+  tts: "tts",
 } as const;
 
 export interface ModelInfo {
   id: string;
   name: string;
   provider: string;
-  type: ModelInfoType;
+  category: ModelInfoCategory;
+  type: string;
   description?: string;
   tags?: string[];
   supportsDuration?: boolean;
   supportsImageInput?: boolean;
+  supportsVideoInput?: boolean;
+  supportsAudioInput?: boolean;
   maxDuration?: number;
   aspectRatios?: string[];
+  voices?: string[];
 }
 
 export interface ModelsListResponse {
   models: ModelInfo[];
 }
+
+export type UploadFileBody = {
+  file: Blob;
+};
 
 export type GetJobStatusParams = {
   requestId: string;

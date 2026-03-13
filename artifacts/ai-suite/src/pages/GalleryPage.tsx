@@ -19,6 +19,12 @@ function MediaCard({ item, onDelete }: { item: GalleryItem; onDelete: () => void
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
+  const mediaTypeInfo = {
+    image: { icon: "🖼️", label: "Image", ext: "jpg" },
+    video: { icon: "🎬", label: "Video", ext: "mp4" },
+    audio: { icon: "🎵", label: "Audio", ext: "mp3" },
+  }[item.mediaType] || { icon: "✨", label: "Media", ext: "bin" };
+
   return (
     <div
       className="bg-card border border-border rounded-2xl overflow-hidden group"
@@ -27,56 +33,51 @@ function MediaCard({ item, onDelete }: { item: GalleryItem; onDelete: () => void
     >
       {/* Media */}
       <div className="relative bg-black aspect-video">
-        {item.mediaType === "image" ? (
-          <img
-            src={output.url}
-            alt={item.prompt}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <video
-            src={output.url}
-            autoPlay
-            loop
-            muted={muted}
-            playsInline
-            className="w-full h-full object-contain"
-          />
+        {item.mediaType === "image" && (
+          <img src={output.url} alt={item.prompt} className="w-full h-full object-cover" />
+        )}
+        {item.mediaType === "video" && (
+          <video src={output.url} autoPlay loop muted={muted} playsInline className="w-full h-full object-contain" />
+        )}
+        {item.mediaType === "audio" && (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-4">
+            <div className="w-16 h-16 rounded-full bg-teal-500/20 flex items-center justify-center text-3xl">🎵</div>
+            <audio controls className="w-full max-w-xs" src={output.url} style={{ filter: "invert(0.9) hue-rotate(180deg)" }} />
+          </div>
         )}
 
-        {/* Overlay controls */}
-        <div className={`absolute inset-0 bg-black/40 flex items-end justify-between p-2 transition-opacity ${showDelete ? "opacity-100" : "opacity-0"}`}>
-          <div className="flex gap-1.5">
-            {item.mediaType === "video" && (
-              <button
-                onClick={() => setMuted((m) => !m)}
-                className="bg-black/60 text-white text-xs px-2 py-1 rounded-full"
-              >
-                {muted ? "🔇" : "🔊"}
-              </button>
-            )}
-            <a
-              href={output.url}
-              download={`generation.${item.mediaType === "video" ? "mp4" : "jpg"}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-black/60 text-white text-xs px-2 py-1 rounded-full"
-            >
-              ⬇️
-            </a>
+        {/* Overlay controls (non-audio) */}
+        {item.mediaType !== "audio" && (
+          <div className={`absolute inset-0 bg-black/40 flex items-end justify-between p-2 transition-opacity ${showDelete ? "opacity-100" : "opacity-0"}`}>
+            <div className="flex gap-1.5">
+              {item.mediaType === "video" && (
+                <button onClick={() => setMuted((m) => !m)} className="bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+                  {muted ? "🔇" : "🔊"}
+                </button>
+              )}
+              <a href={output.url} download={`generation.${mediaTypeInfo.ext}`} target="_blank" rel="noopener noreferrer" className="bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+                ⬇️
+              </a>
+            </div>
+            <button onClick={onDelete} className="bg-red-500/80 text-white text-xs px-2 py-1 rounded-full hover:bg-red-500">
+              🗑️
+            </button>
           </div>
-          <button
-            onClick={onDelete}
-            className="bg-red-500/80 text-white text-xs px-2 py-1 rounded-full hover:bg-red-500"
-          >
-            🗑️
-          </button>
-        </div>
+        )}
+
+        {/* Delete button for audio */}
+        {item.mediaType === "audio" && (
+          <div className={`absolute top-2 right-2 transition-opacity ${showDelete ? "opacity-100" : "opacity-0"}`}>
+            <button onClick={onDelete} className="bg-red-500/80 text-white text-xs px-2 py-1 rounded-full hover:bg-red-500">
+              🗑️
+            </button>
+          </div>
+        )}
 
         {/* Media type badge */}
         <div className="absolute top-2 left-2">
           <span className="bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
-            {item.mediaType === "image" ? "🖼️ Image" : "🎬 Video"}
+            {mediaTypeInfo.icon} {mediaTypeInfo.label}
           </span>
         </div>
       </div>

@@ -3,19 +3,16 @@
  * Do not edit manually.
  * Api
  * AI Media Suite API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
-import type { VideoGenerationRequestAspectRatio } from "./videoGenerationRequestAspectRatio";
-import type { VideoGenerationRequestDuration } from "./videoGenerationRequestDuration";
 
 export interface VideoGenerationRequest {
-  /** fal.ai model endpoint ID e.g. fal-ai/kling-video/v3/pro/text-to-video */
   modelId: string;
   prompt: string;
   negativePrompt?: string;
-  duration?: VideoGenerationRequestDuration;
-  aspectRatio?: VideoGenerationRequestAspectRatio;
-  /** Source image for image-to-video models */
+  duration?: string;
+  aspectRatio?: string;
   imageUrl?: string;
   seed?: number;
+  generateAudio?: boolean;
 }

@@ -3,7 +3,7 @@ export interface GalleryItem {
   prompt: string;
   modelId: string;
   modelName: string;
-  mediaType: "image" | "video";
+  mediaType: "image" | "video" | "audio";
   outputs: Array<{ url: string; contentType?: string; width?: number; height?: number; duration?: number }>;
   createdAt: string;
   aspectRatio?: string;

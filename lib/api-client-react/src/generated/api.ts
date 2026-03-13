@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * AI Media Suite API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
@@ -23,7 +23,12 @@ import type {
   HealthStatus,
   ImageGenerationRequest,
   JobStatusResponse,
+  LipsyncGenerationRequest,
   ModelsListResponse,
+  MotionGenerationRequest,
+  TtsGenerationRequest,
+  UploadFileBody,
+  UploadResponse,
   VideoGenerationRequest,
 } from "./api.schemas";
 
@@ -110,6 +115,94 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Upload a file to fal.ai storage
+ */
+export const getUploadFileUrl = () => {
+  return `/api/upload`;
+};
+
+export const uploadFile = async (
+  uploadFileBody: UploadFileBody,
+  options?: RequestInit,
+): Promise<UploadResponse> => {
+  const formData = new FormData();
+  formData.append(`file`, uploadFileBody.file);
+
+  return customFetch<UploadResponse>(getUploadFileUrl(), {
+    ...options,
+    method: "POST",
+    body: formData,
+  });
+};
+
+export const getUploadFileMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadFile>>,
+    TError,
+    { data: BodyType<UploadFileBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof uploadFile>>,
+  TError,
+  { data: BodyType<UploadFileBody> },
+  TContext
+> => {
+  const mutationKey = ["uploadFile"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof uploadFile>>,
+    { data: BodyType<UploadFileBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return uploadFile(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UploadFileMutationResult = NonNullable<
+  Awaited<ReturnType<typeof uploadFile>>
+>;
+export type UploadFileMutationBody = BodyType<UploadFileBody>;
+export type UploadFileMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Upload a file to fal.ai storage
+ */
+export const useUploadFile = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadFile>>,
+    TError,
+    { data: BodyType<UploadFileBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof uploadFile>>,
+  TError,
+  { data: BodyType<UploadFileBody> },
+  TContext
+> => {
+  return useMutation(getUploadFileMutationOptions(options));
+};
 
 /**
  * @summary Generate image using AI model
@@ -284,6 +377,264 @@ export const useGenerateVideo = <
 };
 
 /**
+ * @summary Motion control video generation
+ */
+export const getGenerateMotionUrl = () => {
+  return `/api/generate/motion`;
+};
+
+export const generateMotion = async (
+  motionGenerationRequest: MotionGenerationRequest,
+  options?: RequestInit,
+): Promise<GenerationResponse> => {
+  return customFetch<GenerationResponse>(getGenerateMotionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(motionGenerationRequest),
+  });
+};
+
+export const getGenerateMotionMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateMotion>>,
+    TError,
+    { data: BodyType<MotionGenerationRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateMotion>>,
+  TError,
+  { data: BodyType<MotionGenerationRequest> },
+  TContext
+> => {
+  const mutationKey = ["generateMotion"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateMotion>>,
+    { data: BodyType<MotionGenerationRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return generateMotion(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateMotionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateMotion>>
+>;
+export type GenerateMotionMutationBody = BodyType<MotionGenerationRequest>;
+export type GenerateMotionMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Motion control video generation
+ */
+export const useGenerateMotion = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateMotion>>,
+    TError,
+    { data: BodyType<MotionGenerationRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateMotion>>,
+  TError,
+  { data: BodyType<MotionGenerationRequest> },
+  TContext
+> => {
+  return useMutation(getGenerateMotionMutationOptions(options));
+};
+
+/**
+ * @summary Lip sync video to audio
+ */
+export const getGenerateLipsyncUrl = () => {
+  return `/api/generate/lipsync`;
+};
+
+export const generateLipsync = async (
+  lipsyncGenerationRequest: LipsyncGenerationRequest,
+  options?: RequestInit,
+): Promise<GenerationResponse> => {
+  return customFetch<GenerationResponse>(getGenerateLipsyncUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(lipsyncGenerationRequest),
+  });
+};
+
+export const getGenerateLipsyncMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateLipsync>>,
+    TError,
+    { data: BodyType<LipsyncGenerationRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateLipsync>>,
+  TError,
+  { data: BodyType<LipsyncGenerationRequest> },
+  TContext
+> => {
+  const mutationKey = ["generateLipsync"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateLipsync>>,
+    { data: BodyType<LipsyncGenerationRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return generateLipsync(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateLipsyncMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateLipsync>>
+>;
+export type GenerateLipsyncMutationBody = BodyType<LipsyncGenerationRequest>;
+export type GenerateLipsyncMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Lip sync video to audio
+ */
+export const useGenerateLipsync = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateLipsync>>,
+    TError,
+    { data: BodyType<LipsyncGenerationRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateLipsync>>,
+  TError,
+  { data: BodyType<LipsyncGenerationRequest> },
+  TContext
+> => {
+  return useMutation(getGenerateLipsyncMutationOptions(options));
+};
+
+/**
+ * @summary Text to speech
+ */
+export const getGenerateTtsUrl = () => {
+  return `/api/generate/tts`;
+};
+
+export const generateTts = async (
+  ttsGenerationRequest: TtsGenerationRequest,
+  options?: RequestInit,
+): Promise<GenerationResponse> => {
+  return customFetch<GenerationResponse>(getGenerateTtsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(ttsGenerationRequest),
+  });
+};
+
+export const getGenerateTtsMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateTts>>,
+    TError,
+    { data: BodyType<TtsGenerationRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateTts>>,
+  TError,
+  { data: BodyType<TtsGenerationRequest> },
+  TContext
+> => {
+  const mutationKey = ["generateTts"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateTts>>,
+    { data: BodyType<TtsGenerationRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return generateTts(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateTtsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateTts>>
+>;
+export type GenerateTtsMutationBody = BodyType<TtsGenerationRequest>;
+export type GenerateTtsMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Text to speech
+ */
+export const useGenerateTts = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateTts>>,
+    TError,
+    { data: BodyType<TtsGenerationRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateTts>>,
+  TError,
+  { data: BodyType<TtsGenerationRequest> },
+  TContext
+> => {
+  return useMutation(getGenerateTtsMutationOptions(options));
+};
+
+/**
  * @summary Get job status and result
  */
 export const getGetJobStatusUrl = (
@@ -325,7 +676,7 @@ export const getGetJobStatusQueryKey = (
 
 export const getGetJobStatusQueryOptions = <
   TData = Awaited<ReturnType<typeof getJobStatus>>,
-  TError = ErrorType<ErrorResponse>,
+  TError = ErrorType<unknown>,
 >(
   jobId: string,
   params: GetJobStatusParams,
@@ -362,7 +713,7 @@ export const getGetJobStatusQueryOptions = <
 export type GetJobStatusQueryResult = NonNullable<
   Awaited<ReturnType<typeof getJobStatus>>
 >;
-export type GetJobStatusQueryError = ErrorType<ErrorResponse>;
+export type GetJobStatusQueryError = ErrorType<unknown>;
 
 /**
  * @summary Get job status and result
@@ -370,7 +721,7 @@ export type GetJobStatusQueryError = ErrorType<ErrorResponse>;
 
 export function useGetJobStatus<
   TData = Awaited<ReturnType<typeof getJobStatus>>,
-  TError = ErrorType<ErrorResponse>,
+  TError = ErrorType<unknown>,
 >(
   jobId: string,
   params: GetJobStatusParams,
