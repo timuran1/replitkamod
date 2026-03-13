@@ -1,22 +1,24 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: AI Media Suite API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: generate
+    description: AI media generation
+  - name: jobs
+    description: Job management
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +26,117 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /generate/image:
+    post:
+      operationId: generateImage
+      tags: [generate]
+      summary: Generate image using AI model
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImageGenerationRequest"
+      responses:
+        "200":
+          description: Image generation started or completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /generate/video:
+    post:
+      operationId: generateVideo
+      tags: [generate]
+      summary: Generate video using AI model
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VideoGenerationRequest"
+      responses:
+        "200":
+          description: Video generation started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /jobs/{jobId}/status:
+    get:
+      operationId: getJobStatus
+      tags: [jobs]
+      summary: Get job status and result
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: requestId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: modelId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobStatusResponse"
+        "404":
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /models:
+    get:
+      operationId: listModels
+      tags: [generate]
+      summary: List available AI models
+      responses:
+        "200":
+          description: List of available models
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelsListResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +147,170 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+
+    ImageGenerationRequest:
+      type: object
+      properties:
+        modelId:
+          type: string
+          description: "fal.ai model endpoint ID e.g. fal-ai/nano-banana-2"
+        prompt:
+          type: string
+        negativePrompt:
+          type: string
+        aspectRatio:
+          type: string
+          enum: ["1:1", "16:9", "9:16", "4:3", "3:4", "21:9"]
+        numImages:
+          type: integer
+          minimum: 1
+          maximum: 4
+        seed:
+          type: integer
+      required:
+        - modelId
+        - prompt
+
+    VideoGenerationRequest:
+      type: object
+      properties:
+        modelId:
+          type: string
+          description: "fal.ai model endpoint ID e.g. fal-ai/kling-video/v3/pro/text-to-video"
+        prompt:
+          type: string
+        negativePrompt:
+          type: string
+        duration:
+          type: string
+          enum: ["5", "10"]
+        aspectRatio:
+          type: string
+          enum: ["16:9", "9:16", "1:1"]
+        imageUrl:
+          type: string
+          description: Source image for image-to-video models
+        seed:
+          type: integer
+      required:
+        - modelId
+        - prompt
+
+    GenerationResponse:
+      type: object
+      properties:
+        jobId:
+          type: string
+        requestId:
+          type: string
+        status:
+          type: string
+          enum: ["queued", "in_progress", "completed", "failed"]
+        mediaType:
+          type: string
+          enum: ["image", "video"]
+        outputs:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaOutput"
+        error:
+          type: string
+      required:
+        - jobId
+        - status
+        - mediaType
+
+    JobStatusResponse:
+      type: object
+      properties:
+        jobId:
+          type: string
+        requestId:
+          type: string
+        status:
+          type: string
+          enum: ["queued", "in_progress", "completed", "failed"]
+        queuePosition:
+          type: integer
+        outputs:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaOutput"
+        error:
+          type: string
+        logs:
+          type: array
+          items:
+            type: string
+      required:
+        - jobId
+        - status
+
+    MediaOutput:
+      type: object
+      properties:
+        url:
+          type: string
+        contentType:
+          type: string
+        width:
+          type: integer
+        height:
+          type: integer
+        duration:
+          type: number
+      required:
+        - url
+
+    ModelInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        provider:
+          type: string
+        type:
+          type: string
+          enum: ["text-to-image", "text-to-video", "image-to-video"]
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        supportsDuration:
+          type: boolean
+        supportsImageInput:
+          type: boolean
+        maxDuration:
+          type: integer
+        aspectRatios:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - name
+        - provider
+        - type
+
+    ModelsListResponse:
+      type: object
+      properties:
+        models:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModelInfo"
+      required:
+        - models
