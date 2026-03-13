@@ -1,4 +1,5 @@
 import { useLocation } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
 
 const NAV_LINKS = [
   { path: "/", label: "Студия" },
@@ -30,6 +31,90 @@ function KamodLogo({ onClick }: { onClick: () => void }) {
         Kamod <span style={{ color: "var(--k-muted)", fontWeight: 400 }}>AI</span>
       </span>
     </button>
+  );
+}
+
+function UserMenu() {
+  const { user, credits, signOut } = useAuth();
+  const [, navigate] = useLocation();
+
+  if (!user) {
+    return (
+      <button
+        onClick={() => navigate("/auth")}
+        className="k-btn-accent px-4 py-1.5 text-sm"
+      >
+        Войти
+      </button>
+    );
+  }
+
+  const avatarUrl = user.user_metadata?.avatar_url as string | undefined;
+  const fullName = (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "Пользователь";
+  const shortName = fullName.split(" ")[0];
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* Credits pill */}
+      <div
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium"
+        style={{
+          background: "rgba(200, 169, 110, 0.1)",
+          border: "1px solid rgba(200, 169, 110, 0.25)",
+          color: "var(--k-accent)",
+        }}
+      >
+        <span>💎</span>
+        <span>{credits} кр.</span>
+      </div>
+
+      {/* Avatar + name dropdown */}
+      <div className="relative group">
+        <button className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl transition-all"
+          style={{ border: "0.5px solid var(--k-border)" }}
+          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(200,169,110,0.3)")}
+          onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.borderColor = "var(--k-border)")}
+        >
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={shortName} className="w-6 h-6 rounded-full object-cover" />
+          ) : (
+            <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+              style={{ background: "var(--k-accent)", color: "#111118" }}>
+              {shortName[0]?.toUpperCase()}
+            </div>
+          )}
+          <span className="text-sm font-medium max-w-24 truncate" style={{ color: "var(--k-text)" }}>{shortName}</span>
+          <span className="text-xs" style={{ color: "var(--k-muted)" }}>▾</span>
+        </button>
+
+        {/* Dropdown */}
+        <div
+          className="absolute right-0 top-full mt-2 w-44 rounded-xl py-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-150 z-50"
+          style={{ background: "var(--k-surface)", border: "0.5px solid var(--k-border)", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}
+        >
+          <div className="px-3 py-2 border-b" style={{ borderColor: "var(--k-border)" }}>
+            <p className="text-xs font-semibold truncate" style={{ color: "var(--k-text)" }}>{fullName}</p>
+            <p className="text-xs truncate" style={{ color: "var(--k-muted)" }}>{user.email}</p>
+          </div>
+          <button
+            onClick={() => navigate("/pricing")}
+            className="w-full text-left px-3 py-2 text-xs transition-colors"
+            style={{ color: "var(--k-accent)" }}
+          >
+            💎 Купить кредиты
+          </button>
+          <button
+            onClick={signOut}
+            className="w-full text-left px-3 py-2 text-xs transition-colors"
+            style={{ color: "var(--k-muted)" }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "var(--k-text)")}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "var(--k-muted)")}
+          >
+            Выйти
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -71,33 +156,12 @@ export function TopNav() {
               </button>
             );
           })}
-          <button
-            className="ml-1 text-sm"
-            style={{ color: "var(--k-muted)" }}
-          >
+          <button className="ml-1 text-sm" style={{ color: "var(--k-muted)" }}>
             Для бизнеса
           </button>
         </nav>
 
-        <div className="flex items-center gap-3">
-          <div
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium"
-            style={{
-              background: "rgba(200, 169, 110, 0.1)",
-              border: "1px solid rgba(200, 169, 110, 0.25)",
-              color: "var(--k-accent)",
-            }}
-          >
-            <span>💎</span>
-            <span>550 кредитов</span>
-          </div>
-          <button
-            onClick={() => navigate("/pricing")}
-            className="k-btn-accent px-4 py-1.5 text-sm"
-          >
-            Войти
-          </button>
-        </div>
+        <UserMenu />
       </div>
     </header>
   );

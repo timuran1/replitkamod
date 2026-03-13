@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { fal } from "@fal-ai/client";
+import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
 
@@ -58,7 +59,7 @@ async function submitJob(modelId: string, input: Record<string, unknown>, mediaT
 // ─── ROUTES ────────────────────────────────────────────────────────────────
 
 // POST /api/generate/image
-router.post("/generate/image", async (req: Request, res: Response) => {
+router.post("/generate/image", requireAuth, async (req: Request, res: Response) => {
   try {
     const { modelId, prompt, negativePrompt, aspectRatio, numImages, seed, imageUrl, imageStrength } = req.body as Record<string, unknown>;
     if (!modelId || !prompt) return res.status(400).json({ error: "missing_fields", message: "modelId and prompt required" });
@@ -78,7 +79,7 @@ router.post("/generate/image", async (req: Request, res: Response) => {
 });
 
 // POST /api/generate/video
-router.post("/generate/video", async (req: Request, res: Response) => {
+router.post("/generate/video", requireAuth, async (req: Request, res: Response) => {
   try {
     const { modelId, prompt, negativePrompt, aspectRatio, duration, imageUrl, seed, generateAudio } = req.body as Record<string, unknown>;
     if (!modelId || !prompt) return res.status(400).json({ error: "missing_fields", message: "modelId and prompt required" });
@@ -98,7 +99,7 @@ router.post("/generate/video", async (req: Request, res: Response) => {
 });
 
 // POST /api/generate/motion
-router.post("/generate/motion", async (req: Request, res: Response) => {
+router.post("/generate/motion", requireAuth, async (req: Request, res: Response) => {
   try {
     const { modelId, imageUrl, videoUrl, prompt, characterOrientation } = req.body as Record<string, unknown>;
     if (!modelId || !imageUrl || !videoUrl) return res.status(400).json({ error: "missing_fields", message: "modelId, imageUrl, and videoUrl required" });
@@ -114,7 +115,7 @@ router.post("/generate/motion", async (req: Request, res: Response) => {
 });
 
 // POST /api/generate/lipsync
-router.post("/generate/lipsync", async (req: Request, res: Response) => {
+router.post("/generate/lipsync", requireAuth, async (req: Request, res: Response) => {
   try {
     const { modelId, videoUrl, audioUrl } = req.body as Record<string, unknown>;
     if (!modelId || !videoUrl || !audioUrl) return res.status(400).json({ error: "missing_fields", message: "modelId, videoUrl, and audioUrl required" });
@@ -128,7 +129,7 @@ router.post("/generate/lipsync", async (req: Request, res: Response) => {
 });
 
 // POST /api/generate/tts
-router.post("/generate/tts", async (req: Request, res: Response) => {
+router.post("/generate/tts", requireAuth, async (req: Request, res: Response) => {
   try {
     const { modelId, text, voice, speed, referenceAudioUrl } = req.body as Record<string, unknown>;
     if (!modelId || !text) return res.status(400).json({ error: "missing_fields", message: "modelId and text required" });

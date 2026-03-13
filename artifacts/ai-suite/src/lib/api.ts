@@ -1,3 +1,5 @@
+import { supabase } from "./supabase";
+
 const BASE = "/api";
 
 export interface ModelInfo {
@@ -88,10 +90,23 @@ export interface TtsGenerationRequest {
   referenceAudioUrl?: string;
 }
 
-async function request<T>(path: string, opts?: RequestInit): Promise<T> {
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    return { Authorization: `Bearer ${session.access_token}` };
+  }
+  return {};
+}
+
+async function request<T>(path: string, opts?: RequestInit & { skipAuth?: boolean }): Promise<T> {
+  const authHeaders = opts?.skipAuth ? {} : await getAuthHeaders();
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...opts,
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders,
+      ...(opts?.headers as Record<string, string> | undefined),
+    },
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || data.error || "Request failed");
@@ -99,7 +114,7 @@ async function request<T>(path: string, opts?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  listModels: () => request<{ models: ModelInfo[] }>("/models"),
+  listModels: () => request<{ models: ModelInfo[] }>("/models", { skipAuth: true }),
 
   generateImage: (body: ImageGenerationRequest) =>
     request<GenerationResponse>("/generate/image", { method: "POST", body: JSON.stringify(body) }),
@@ -118,13 +133,19 @@ export const api = {
 
   getJobStatus: (jobId: string, requestId: string, modelId: string) =>
     request<JobStatusResponse>(
-      `/jobs/${jobId}/status?requestId=${encodeURIComponent(requestId)}&modelId=${encodeURIComponent(modelId)}`
+      `/jobs/${jobId}/status?requestId=${encodeURIComponent(requestId)}&modelId=${encodeURIComponent(modelId)}`,
+      { skipAuth: true }
     ),
 
   uploadFile: async (file: File): Promise<{ url: string }> => {
+    const authHeaders = await getAuthHeaders();
     const formData = new FormData();
     formData.append("file", file);
-    const res = await fetch(`${BASE}/upload`, { method: "POST", body: formData });
+    const res = await fetch(`${BASE}/upload`, {
+      method: "POST",
+      headers: authHeaders,
+      body: formData,
+    });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Upload failed");
     return data as { url: string };
