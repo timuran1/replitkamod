@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 export default function AuthCallbackPage() {
   const [, navigate] = useLocation();
@@ -8,13 +8,42 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const handleCallback = async () => {
+      const sb = getSupabase();
+      if (!sb) {
+        setErrMsg("Supabase не настроен — обратитесь к администратору.");
+        return;
+      }
+
       try {
-        const { data, error } = await supabase.auth.getSession();
+        // First try: grab session from URL hash (implicit flow)
+        const hashParams = new URLSearchParams(window.location.hash.slice(1));
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+
+        if (accessToken && refreshToken) {
+          const { error: sessErr } = await sb.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (sessErr) { setErrMsg(sessErr.message); return; }
+        }
+
+        // Second try: PKCE code exchange (code in query string)
+        const searchParams = new URLSearchParams(window.location.search);
+        const code = searchParams.get("code");
+        if (code) {
+          const { error: exchErr } = await sb.auth.exchangeCodeForSession(code);
+          if (exchErr) { setErrMsg(exchErr.message); return; }
+        }
+
+        // Get the resolved session
+        const { data, error } = await sb.auth.getSession();
         if (error) { setErrMsg(error.message); return; }
 
         if (data.session) {
           const user = data.session.user;
-          await supabase.from("profiles").upsert(
+          // Upsert profile — only sets credits=10 on first login (ignoreDuplicates)
+          await sb.from("profiles").upsert(
             {
               id: user.id,
               email: user.email,
@@ -24,21 +53,9 @@ export default function AuthCallbackPage() {
             },
             { onConflict: "id", ignoreDuplicates: true }
           );
-          navigate("/");
-        } else {
-          const hashParams = new URLSearchParams(window.location.hash.slice(1));
-          const accessToken = hashParams.get("access_token");
-          const refreshToken = hashParams.get("refresh_token");
-
-          if (accessToken && refreshToken) {
-            const { error: sessErr } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-            if (sessErr) { setErrMsg(sessErr.message); return; }
-          }
-          navigate("/");
         }
+
+        navigate("/");
       } catch (err) {
         setErrMsg(err instanceof Error ? err.message : "Ошибка входа");
       }
